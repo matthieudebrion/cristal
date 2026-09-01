@@ -35,6 +35,11 @@ ${katexCSSTag}
 
 :host([block]) {
   display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 1.4em 0;
+  overflow: visible;
+  text-align: center;
 }
 
 ${style}

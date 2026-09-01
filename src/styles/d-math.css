@@ -14,14 +14,23 @@
  * limitations under the License.
  */
 
+:host([block]) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 1.4em 0;
+  overflow: visible;
+  text-align: center;
+}
+
 span.katex-display {
-  text-align: left;
-  padding: 8px 0 8px 0;
-  margin: 0.5em 0 0.5em 1em;
+  text-align: center;
+  padding: 0;
+  margin: 0;
 }
 
 span.katex {
   -webkit-font-smoothing: antialiased;
   color: rgba(0, 0, 0, 0.8);
-  font-size: 1.18em;
+  font-size: 1.1em;
 }

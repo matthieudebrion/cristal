@@ -1,0 +1,319 @@
+/*
+ * transformer-circuits.pub skin.
+ *
+ * A thin overlay on stock Distill that reproduces the look of
+ * https://transformer-circuits.pub/2021/framework/index.html :
+ * plain flush-left masthead, borderless section headings, a margin
+ * table of contents with a hairline rule, wide horizontal-rule gaps,
+ * and a byline framed by two hairlines.
+ *
+ * Duke Blue (#012169) is the only chromatic color in the design;
+ * everything else is neutral gray on white.
+ */
+
+:root {
+  --duke-blue: #012169;
+  --duke-blue-hover: #01123a;
+  --rule: rgba(0, 0, 0, 0.1);
+  --rule-strong: rgba(0, 0, 0, 0.2);
+  --ink: rgba(0, 0, 0, 0.8);
+  --ink-soft: rgba(0, 0, 0, 0.6);
+  --ink-faint: rgba(0, 0, 0, 0.5);
+}
+
+html {
+  background: #fff;
+}
+
+body {
+  background: #fff;
+}
+
+::selection {
+  background: rgba(1, 33, 105, 0.15);
+}
+
+a {
+  color: var(--duke-blue);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--duke-blue);
+  outline-offset: 2px;
+}
+
+/* ****************************************
+ * Masthead
+ ******************************************/
+
+distill-header {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: auto;
+  padding: 10px 10px 20px;
+  box-sizing: border-box;
+  border-bottom: none;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  position: static;
+}
+
+/* ****************************************
+ * Title
+ ******************************************/
+
+d-title {
+  padding: 2rem 0 1.5rem;
+}
+
+@media (min-width: 768px) {
+  d-title {
+    padding: 3rem 0 1.5rem;
+  }
+}
+
+d-title h1 {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+d-title p {
+  color: var(--ink-soft);
+  max-width: 34em;
+}
+
+d-title .status {
+  color: var(--duke-blue);
+}
+
+d-title .status span {
+  border-bottom: 1px solid rgba(1, 33, 105, 0.35);
+}
+
+/* ****************************************
+ * Byline: framed by two hairlines
+ ******************************************/
+
+d-byline {
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 20px 0;
+}
+
+d-byline h3 {
+  margin-bottom: 4px;
+}
+
+d-byline p.author {
+  font-weight: 500;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+
+/* ****************************************
+ * Article
+ ******************************************/
+
+d-article {
+  border-top: none;
+  padding-top: 2.5rem;
+  color: var(--ink);
+}
+
+d-article a {
+  color: var(--duke-blue);
+  border-bottom: 1px solid rgba(1, 33, 105, 0.35);
+  text-decoration: none;
+}
+
+d-article a:hover {
+  color: var(--duke-blue-hover);
+  border-bottom: 1px solid var(--duke-blue);
+}
+
+d-article h1 a,
+d-article h2 a,
+d-article h3 a,
+d-article h4 a,
+d-article h2 a:hover,
+d-article h3 a:hover {
+  color: inherit;
+  border-bottom: none;
+  text-decoration: none;
+}
+
+d-article h2 {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin: 2.5rem 0 1.5rem;
+}
+
+d-article h3 {
+  font-size: 20px;
+  margin-top: 2em;
+}
+
+@media (min-width: 1024px) {
+  d-article h3 {
+    font-size: 26px;
+  }
+}
+
+d-article h4 {
+  font-size: 16px;
+  margin-top: 30px;
+  margin-bottom: 0.75em;
+  text-transform: none;
+  font-weight: 600;
+}
+
+d-article .marker {
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+d-article .marker span {
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+d-article .marker:hover span {
+  color: var(--duke-blue);
+  border-bottom-color: var(--duke-blue);
+}
+
+/* Section separators sit in a lot of space, as on the source page. */
+
+@media (min-width: 600px) {
+  d-article hr {
+    margin-top: 140px;
+    margin-bottom: 120px;
+  }
+}
+
+@media (max-width: 599px) {
+  d-article hr {
+    margin-top: 80px;
+    margin-bottom: 80px;
+  }
+}
+
+d-article ul,
+d-appendix ul {
+  padding-left: 0;
+}
+
+d-article > ol,
+d-appendix ol {
+  padding-left: 0 !important;
+}
+
+d-article ol {
+  padding-left: 36pt;
+}
+
+d-article ul {
+  padding-left: 18px;
+}
+
+d-article ul li,
+d-article ol li {
+  margin-bottom: 8px;
+}
+
+d-article blockquote {
+  border-left: 2px solid var(--rule-strong);
+  padding-left: 2em;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+d-article aside {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6em;
+}
+
+d-article .citation {
+  color: var(--duke-blue);
+  cursor: pointer;
+}
+
+d-footnote {
+  margin-left: -3px;
+  margin-right: 2px;
+}
+
+/* Inline code */
+
+code {
+  white-space: pre;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 2px;
+  padding: 1px 2px 2px;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+d-code {
+  font-size: 14px;
+}
+
+/* Figures and tables */
+
+d-article figure {
+  margin-top: 1.5em;
+  margin-bottom: 2.5em;
+}
+
+figcaption,
+.figcaption {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5em;
+}
+
+@media (min-width: 1024px) {
+  figcaption,
+  .figcaption {
+    font-size: 13px;
+  }
+}
+
+d-article table {
+  margin-bottom: 1.5rem;
+}
+
+d-article table p {
+  min-height: 16px;
+  line-height: 1.2;
+}
+
+d-article table td {
+  vertical-align: top;
+}
+
+/* ****************************************
+ * Appendix and footer
+ ******************************************/
+
+d-appendix {
+  border-top: 1px solid var(--rule);
+  color: var(--ink-faint);
+}
+
+d-appendix a {
+  color: var(--ink-soft);
+}
+
+d-appendix a:hover {
+  color: var(--duke-blue);
+}
+
+d-citation-list .references .title {
+  font-weight: 500;
+}

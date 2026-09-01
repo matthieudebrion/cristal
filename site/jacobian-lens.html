@@ -1,0 +1,691 @@
+<!doctype html>
+<head>
+  <script src="template.v2.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf8">
+  <title>The Jacobian Lens</title>
+  <meta name="description" content="Using the model's averaged Jacobian to translate intermediate residual states into vocabulary predictions, without training a separate probe.">
+</head>
+
+<body>
+  <distill-header></distill-header>
+
+  <d-front-matter>
+    <script id="distill-front-matter" type="text/json">{
+      "title": "The Jacobian Lens",
+      "description": "Using the model's averaged Jacobian to translate intermediate residual states into vocabulary predictions, without training a separate probe.",
+      "published": "Aug 29, 2026",
+      "authors": [
+        {"author": "Matthieu de Brion"}
+      ],
+      "katex": {
+        "delimiters": [
+          {"left": "$$", "right": "$$", "display": true},
+          {"left": "$", "right": "$", "display": false}
+        ]
+      }
+    }</script>
+  </d-front-matter>
+
+  <d-title>
+    <h1>The Jacobian Lens</h1>
+    <p>Using the model's averaged Jacobian to translate intermediate residual states into vocabulary predictions, without training a separate probe.</p>
+  </d-title>
+
+  <d-byline></d-byline>
+
+  <div class="d-byline-container base-grid">
+    <div class="d-byline">
+      <div class="authors">
+        <h3>Author</h3>
+        <div>
+          <span class="author">Matthieu de Brion</span>
+        </div>
+      </div>
+      <div>
+        <h3>Published</h3>
+        <div>Aug 29, 2026</div>
+      </div>
+    </div>
+  </div>
+
+  <d-article>
+    <d-toc></d-toc>
+
+    <p><strong>TL;DR.</strong> The Jacobian lens (J-lens) characterizes an intermediate activation by its first-order causal effect on the final residual stream. It averages that effect across prompts and positions, then decodes it with the model's unembedding.</p>
+
+    <h2>The Lens Family</h2>
+
+    <h3>How does the Jacobian lens differ from the logit lens?</h3>
+
+    <p>The <a href="#logit-lens">logit lens</a> applies the model's unembedding matrix $W_U$ (typically after a final layer norm) directly to an intermediate residual $\mathbf{h}_\ell$ and reads off a vocabulary distribution:</p>
+
+    $$
+    \operatorname{LogitLens}(\mathbf{h}_\ell)
+    =
+    \operatorname{unembed}(\mathbf{h}_\ell).
+    $$
+
+    <p>This skips the remaining layers $\ell+1,\ldots,L$ and treats the current residual as if it were already the final residual. The assumption is that intermediate representations live in the same coordinates as the final layer. That often works in late layers. In early layers the projections are often incoherent: the information may be present, but not yet in the coordinates $W_U$ expects.</p>
+
+    <h3>Jacobian lens</h3>
+
+    <p>The Jacobian lens keeps that same last decoding step, but first applies a linear map that approximates the skipped layers. The construction is due to Gurnee, Lindsey, and collaborators<d-cite key="gurnee2026workspace"></d-cite>.</p>
+
+    $$
+    \operatorname{JacobianLens}(\mathbf{h}_\ell)
+    =
+    \operatorname{unembed}(\mathbf{h}_\ell J_\ell),
+    $$
+
+    <p>where</p>
+
+    $$
+    J_\ell
+    =
+    \mathbb{E}\left[
+    \left(\frac{\partial \mathbf{h}_{\mathrm{final}}}
+         {\partial \mathbf{h}_\ell}\right)^{T}
+    \right].
+    $$
+
+    <p>That Jacobian is a local, first-order linearization of a nonlinear map, not a trained probe. The logit lens is the special case</p>
+
+    $$
+    J_\ell = I.
+    $$
+
+    <div class="definition">
+      <strong>Jacobian Lens (J-lens):</strong> A per-layer vocabulary readout obtained by (1) computing the Jacobian of the final residual stream with respect to an intermediate residual stream, (2) averaging that Jacobian over token positions and a corpus of prompts, and (3) composing the resulting matrix with the unembedding. It surfaces concepts the model is <em>poised to verbalize</em>, whether or not they appear in the next token.
+    </div>
+
+    <p>The <a href="#tuned-lens">tuned lens</a> instead learns a per-layer map to match output distributions. We return to it when comparing the three lenses.</p>
+
+    <h2>The Model as a (Locally Linear) Function</h2>
+
+    <p>A transformer is a deep, non-linear function. But it has a special structure we will exploit: at every layer, information sits in the residual stream, a vector of dimension $d_\text{model}$, and each layer <em>adds</em> an update to it. Reading off the model's output means:</p>
+
+    <ol>
+      <li>Apply layers $\ell{+}1, \ell{+}2, \dots, L$ to the residual stream $\mathbf{h}_\ell$ at layer $\ell$, producing the final residual stream $\mathbf{h}_L$.</li>
+      <li>Apply a layer norm and the unembedding matrix $W_U$ to $\mathbf{h}_L$, producing logits over the vocabulary.</li>
+    </ol>
+
+    <p>Step 1 is complicated: attention, MLPs, non-linearities, residual connections. Step 2 is linear (up to layer norm). We <em>cannot</em> generally reduce Step 1 to matrix multiplication; the model would not need all those layers if we could. But we can locally <em>approximate</em> Step 1 by matrix multiplication, using the Jacobian.</p>
+
+    <p>Fix a prompt and a source position $t$. Treat $\mathbf{h}_\ell$ (the residual stream at layer $\ell$, position $t$) as the input, and $\mathbf{h}_{\text{final}, t'}$ (the final residual stream at some position $t' \ge t$) as the output. Both are vectors of size $d_\text{model}$. The Jacobian</p>
+
+    $$
+    J_{\ell, t, t'} \;=\; \left( \frac{\partial\, \mathbf{h}_{\text{final}, t'}}{\partial\, \mathbf{h}_{\ell, t}} \right)^{\!T}
+    $$
+
+    <p>is a $d_\text{model} \times d_\text{model}$ matrix, transposed so that it acts from the right: its rows index the input and its columns the output. It tells us: if we nudged $\mathbf{h}_{\ell, t}$ by a small vector $\Delta \mathbf{h}$, the final residual stream at position $t'$ would shift by approximately $\Delta \mathbf{h} \, J_{\ell, t, t'}$.</p>
+
+    <aside>Why $t' \ge t$? Because a perturbation at position $t$ can only affect positions from $t$ onwards. Attention in an autoregressive transformer is causal: earlier positions cannot look at later ones.</aside>
+
+    <p>The shape is worth staring at. Both dimensions equal $d_\text{model}$ because the residual stream has the same width at every layer; it is a shared bus that all layers read from and write to.</p>
+
+    <figure class="jl-figure">
+      <div class="jl-diagram jl-jacobian-shape">
+        <svg viewBox="0 0 720 280" role="img" aria-label="Diagram showing the Jacobian as a d_model by d_model matrix mapping perturbations of h_l to perturbations of h_final.">
+          <g id="jl-shape-plot"></g>
+        </svg>
+      </div>
+      <figcaption>The Jacobian J is a d_model &times; d_model matrix that maps a perturbation in layer-&ell; residual-stream space to a perturbation in final-layer residual-stream space. Row <em>j</em>: how a nudge to input component <em>j</em> ripples through every output component. Column <em>i</em>: how output component <em>i</em> depends on all input components.</figcaption>
+    </figure>
+
+    <h2>Why Average? A Single Jacobian Is Two Things at Once</h2>
+
+    <p>The Jacobian $J_{\ell, t, t'}$ computed on one prompt tells us the local linearization <em>for that specific input</em>. But that linearization mixes two very different kinds of structure:</p>
+
+    <ul>
+      <li><strong>Distribution-averaged structure</strong>: how the downstream computation locally translates perturbations at layer $\ell$ over a chosen sample of contexts. This is the target of the averaged map.</li>
+      <li><strong>Context-specific structure</strong>: how the current prompt's attention patterns, activations, and gates route information through layers $\ell{+}1, \dots, L$. This is transient; it changes with every input.</li>
+    </ul>
+
+    <p>If we care about <em>what a direction in layer-$\ell$ space generally means</em>, we need to strip out the context-specific part. The J-lens does this by <strong>averaging Jacobians over many contexts</strong>:</p>
+
+    $$
+    J_\ell \;=\; \mathbb{E}_{\,t,\; t' \ge t,\; \text{prompt}} \left[\, \left( \frac{\partial\, \mathbf{h}_{\text{final}, t'}}{\partial\, \mathbf{h}_{\ell, t}} \right)^{\!T} \,\right].
+    $$
+
+    <p>The expectation averages over source positions, reachable destination positions, and prompts:</p>
+
+    <ol>
+      <li><strong>Over source positions $t$</strong> within each prompt. A concept encoded at layer $\ell$ should be readable regardless of <em>where</em> in the sequence it appears.</li>
+      <li><strong>Over subsequent positions $t' \ge t$</strong>. We do not care only about how $\mathbf{h}_{\ell, t}$ shapes the immediate next-token logits; we care about how it shapes any downstream logit it can influence.</li>
+      <li><strong>Over a corpus of prompts</strong> (roughly a thousand, in the original paper). This is what turns <em>context-specific</em> into <em>context-independent</em>: averaging over diverse contexts cancels the parts of each Jacobian that depend on that context and leaves the parts that are stable across contexts.</li>
+    </ol>
+
+    <p>The idea is exactly the same as computing an average gradient across a dataset: individual gradients point in noisy, context-driven directions; the average points in the direction the loss actually wants to move. Here the "loss" is not a scalar but a linear map, and averaging happens over context, position, and destination.</p>
+
+    <figure class="jl-figure">
+      <div class="jl-diagram" id="jl-averaging">
+        <svg viewBox="0 0 760 260" role="img" aria-label="Three per-prompt Jacobian heatmaps and their average, showing that noise averages out while shared structure remains.">
+          <g id="jl-avg-plot"></g>
+        </svg>
+        <div class="jl-controls">
+          <label>Number of prompts averaged: <input type="range" id="jl-avg-n" min="1" max="200" step="1" value="1"></label>
+        </div>
+        <div class="jl-readout" id="jl-avg-readout"></div>
+      </div>
+      <figcaption>Simulated per-prompt Jacobians as heatmaps: each is the sum of a shared context-independent structure and per-prompt noise. Slide up the number of prompts and watch the average settle onto the shared structure. This is a toy visualization; the real J-lens averages roughly a thousand Jacobians over a pretraining-like corpus.</figcaption>
+    </figure>
+
+    <details class="pause-and-think">
+      <summary>Pause and think: why not just use one prompt?</summary>
+      <p>Suppose we computed the Jacobian on a single prompt about French cities. What would the top-ranked lens tokens look like, and why would that be misleading as a general readout of layer $\ell$?</p>
+      <p>They would over-represent tokens favored by <em>that</em> prompt because the local Jacobian depends on current attention patterns and MLP gates. Averaging over many prompts reduces prompt-specific variation and defines a map for that sampling distribution. Change the corpus, positions, or weighting and the average may change, so it is not an input-free property of the weights alone.</p>
+    </details>
+
+    <p>The final $J_\ell$ is a single $d_\text{model} \times d_\text{model}$ matrix per layer. It is the "average linear translator" from layer $\ell$ to the final layer.</p>
+
+    <h2>Reading Out: The Lens Formula</h2>
+
+    <p>With $J_\ell$ in hand, applying the lens to an activation $\mathbf{h}_\ell$ is a one-liner. Multiply by $J_\ell$, apply the model's layer norm, apply the unembedding $W_U$, softmax:</p>
+
+    $$
+    \text{lens}(\mathbf{h}_\ell) \;=\; \text{softmax}\!\bigl(\, \text{norm}(\mathbf{h}_\ell \, J_\ell) \, W_U \,\bigr).
+    $$
+
+    <p>Applying the softmax turns these linearized logits into a probability distribution over the vocabulary, giving us a "top tokens" list to inspect.</p>
+
+    <p>The Anthropic paper describes this as <em>equivalent to replacing all subsequent layers with the appropriate lens matrix</em>. That sentence packs a lot into a few words, and it is worth unpacking with a picture.</p>
+
+    <h3>What "replacing all subsequent layers" means</h3>
+
+    <p>Normally the model computes $\mathbf{h}_L$ from $\mathbf{h}_\ell$ by running through everything downstream of layer $\ell$: attention blocks, MLPs, residual connections, layer norms. That downstream computation is a complicated non-linear function; call it $F_\ell$, so that $\mathbf{h}_L = F_\ell(\mathbf{h}_\ell, \text{context})$.</p>
+
+    <p>The averaged Jacobian $J_\ell$ is the best single linear map that approximates $F_\ell$ across contexts. So <em>replacing</em> $F_\ell$ with $J_\ell$ means: pretend the model, from layer $\ell$ onward, is just this linear map. Then the final residual stream would be $\mathbf{h}_\ell J_\ell$, and the model's readout would be $\text{norm}(\mathbf{h}_\ell J_\ell) \, W_U$.</p>
+
+    <p>This gives us the lens formula directly.</p>
+
+    <figure class="jl-figure">
+      <div class="jl-diagram" id="jl-layer-compression">
+        <svg viewBox="0 0 820 340" role="img" aria-label="Diagram showing a transformer stack, then the same stack with layers l+1 through L replaced by a single linear map J_l.">
+          <g id="jl-layers-plot"></g>
+        </svg>
+        <div class="jl-controls">
+          <label>Layer to lens at: <input type="range" id="jl-layers-l" min="1" max="6" step="1" value="3"></label>
+          <label class="jl-toggle"><input type="checkbox" id="jl-layers-toggle"> Show J-lens replacement</label>
+        </div>
+      </div>
+      <figcaption>The full model (top): the residual stream at layer &ell; (yellow) passes through every remaining layer before being unembedded. The J-lens view (toggle on): layers &ell;+1, &hellip;, L are collapsed into the single linear map J_&ell;, followed by the model's own layer norm and unembedding. The green readout is a first-order approximation of what the model would have produced.</figcaption>
+    </figure>
+
+    <h3>Why this is an approximation, not a fact</h3>
+
+    <p>The equivalence is a first-order approximation, not an equality. Two things make it inexact:</p>
+
+    <ul>
+      <li><strong>Non-linearity.</strong> Real transformer layers are non-linear. $J_\ell$ is a <em>local</em> linearization; the further $\mathbf{h}_\ell$ is from the point around which we linearized, the worse the approximation.</li>
+      <li><strong>Averaging.</strong> The single $J_\ell$ we use is an <em>average</em> over contexts. On any particular prompt, the true local Jacobian would differ from $J_\ell$.</li>
+    </ul>
+
+    <p>In the reported evaluations, this approximation produces coherent vocabulary readouts at some depths where the raw logit lens is less informative. The examples support the J-lens as a useful diagnostic. They do not make every top token a faithful description of what the model is "holding in mind"; prompt, corpus, and first-order approximation errors remain possible.</p>
+
+    <h3>The J-lens vectors</h3>
+
+    <p>Look at the lens formula again, focusing on the pre-softmax logits and ignoring the normalization for a moment:</p>
+
+    $$
+    \text{logits} \;\approx\; \mathbf{h}_\ell \, J_\ell \, W_U \;=\; \mathbf{h}_\ell \, \underbrace{(J_\ell W_U)}_{\substack{d_\text{model} \times n_\text{vocab}}}.
+    $$
+
+    <p>The composed matrix $J_\ell W_U$ has one column per vocabulary token. Column $t$ is a direction in layer-$\ell$ residual-stream space; the logit for token $t$ is (approximately) the inner product of that column with $\mathbf{h}_\ell$.</p>
+
+    <div class="definition">
+      <strong>J-lens Vector:</strong> For layer $\ell$ and vocabulary token $t$, the J-lens vector $\mathbf{v}_t^{(\ell)}$ is the $t$-th column of $J_\ell W_U$, viewed as a direction in $\mathbb{R}^{d_\text{model}}$. The lens score for token $t$ at that layer is (up to layer-norm scaling) $\langle \mathbf{v}_t^{(\ell)},\, \mathbf{h}_\ell \rangle$.
+    </div>
+
+    <p>There are $n_\text{vocab}$ such vectors per layer, typically $\sim$100,000 vectors in a $d_\text{model}$-dimensional space. That set is overcomplete: no unique decomposition of an activation as a sum of J-lens vectors exists. But <em>sparse</em> combinations turn out to be well-defined and empirically meaningful; the paper calls the set of activations expressible as sparse non-negative combinations of J-lens vectors the <strong>J-space</strong>.</p>
+
+    <details class="pause-and-think">
+      <summary>Pause and think: J-lens vector vs. probing direction</summary>
+      <p>A linear probe for concept $c$ learns a direction $\mathbf{w}_c$ such that $\langle \mathbf{w}_c, \mathbf{h}_\ell \rangle$ correlates with whether $c$ is present. A J-lens vector $\mathbf{v}_t^{(\ell)}$ is also a direction whose inner product with $\mathbf{h}_\ell$ gives a score. What is the difference, mechanistically?</p>
+      <p>A probe direction is <em>learned</em> to distinguish inputs on some external label. It is correlational: it may or may not align with anything the model itself uses. A J-lens vector is <em>derived</em> from the model's own weights: it is the column of $J_\ell W_U$, so its score is the model's own (first-order) push toward emitting token $t$ downstream. Same geometry (inner product), very different sources of information: labels vs. the model's causal structure.</p>
+    </details>
+
+    <h2>Comparing the Three Lenses</h2>
+
+    <p>The three lenses can be written in a common form:</p>
+
+    $$
+    \text{lens}(\mathbf{h}_\ell) \;=\; \text{softmax}\!\bigl(\, \text{norm}( \mathbf{h}_\ell \, M_\ell ) \, W_U \,\bigr),
+    $$
+
+    <p>differing only in what $M_\ell$ is.</p>
+
+    <table>
+      <thead>
+        <tr><th>Lens</th><th>$M_\ell$</th><th>Source of $M_\ell$</th><th>Character</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Logit lens</td>
+          <td>$I$ (identity)</td>
+          <td>Assumes layer-$\ell$ basis matches final layer</td>
+          <td>No calibration; fails in early layers</td>
+        </tr>
+        <tr>
+          <td>Tuned lens</td>
+          <td>$A_\ell$ (learned affine)</td>
+          <td>Trained to match final output distribution</td>
+          <td>Correlational; can "skip ahead" to outputs</td>
+        </tr>
+        <tr>
+          <td>Jacobian lens</td>
+          <td>$J_\ell$</td>
+          <td>Derived from the model's own weights, averaged</td>
+          <td>Causal, first-order; recovers content in early layers</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>The three choices answer different questions. The logit lens sets $M_\ell=I$, measuring direct alignment with the final unembedding. The tuned lens fits $A_\ell$ to forecast the final output distribution. The J-lens uses $J_\ell$, a first-order summary of what layers $\ell{+}1{:}L$ do over the chosen contexts. It is derived rather than trained against output targets, but its quality still depends on the averaging distribution and on how nonlinear the relevant finite changes are.</p>
+
+    <p>The three coincide in one important edge case: at the final layer, $J_L$ is (approximately) the identity, and all three reduce to the model's own unembedding. Divergences appear as we go earlier.</p>
+
+    <aside>The J-lens paper reports that the logit lens agrees closely with the J-lens in the last several layers and diverges earlier: exactly the regime where the logit lens is known to fail.</aside>
+
+    <p>The mean-Jacobian construction was used earlier by Hernandez et al.<d-cite key="hernandez2023lre"></d-cite> to derive per-<em>relation</em> affine maps $\mathbf{s} W_r + \mathbf{b}_r$ (e.g., a single "plays instrument" matrix that turns "Miles Davis" into "trumpet") and a companion <em>attribute lens</em> for tracking a fixed relation across layers. The J-lens generalizes the same first-order-plus-averaging trick from per-relation to per-layer, taking the expectation over a broad corpus rather than examples of one relation.</p>
+
+    <h2>What Ends Up in the Lens</h2>
+
+    <p>Because $J_\ell$ was built from the causal effect of $\mathbf{h}_\ell$ on final outputs, the top tokens in the J-lens readout are the ones $\mathbf{h}_\ell$ is <em>disposed to push the model to say</em>, averaged across contexts in which such an activation might arise. Those tokens are not always the next predicted token; often they are concepts the model is holding in mind that would surface only if asked. In the source paper, running the J-lens on the token before "the sport is:" while the model has been instructed to think of a sport reveals <em>soccer</em> as a top lens token several layers before the model actually emits it. Applying the lens while the model silently computes $3^2 - 2$ reveals <em>nine</em> and then <em>seven</em> at intermediate layers, exposing the intermediate step. See <d-cite key="gurnee2026workspace"></d-cite> for many more examples.</p>
+
+    <p>Because J-lens readouts are causal by construction, one can also <em>write</em> along a J-lens vector: adding $\alpha \mathbf{v}_t^{(\ell)}$ to $\mathbf{h}_\ell$ tends to make the model more likely to verbalize token $t$, and swapping projections along two J-lens vectors reliably swaps which of the two the model reports. This is a natural bridge to <a href="/topics/addition-steering/">steering methods</a> and to concept-level interventions like <a href="/topics/activation-patching/">activation patching</a>.</p>
+
+    <h2>Limitations</h2>
+
+    <ul>
+      <li><strong>Single-token concepts.</strong> J-lens vectors are indexed by vocabulary tokens, so multi-token concepts (most named entities, most phrases) are not directly captured. Extensions to spans are discussed in the paper.</li>
+      <li><strong>First-order only.</strong> The Jacobian ignores higher-order effects. If a concept only exerts influence via a strongly non-linear interaction (say, gated on the value of another feature), the J-lens will miss it or misattribute it.</li>
+      <li><strong>Averaged, not per-prompt.</strong> The lens is a <em>dispositional</em> readout. For any single prompt, the true local Jacobian differs from $J_\ell$. Using the average is what makes the readout reflect the model rather than the context, but it also means the tool cannot reveal purely context-specific mechanisms without further work.</li>
+      <li><strong>Small variance fraction.</strong> In practice, the J-space accounts for less than about 10% of activation variance at any layer. Most of what happens in the residual stream is <em>not</em> verbalizable in this sense. This is a feature, not a bug, if we take verbalizability as a meaningful selection criterion, but it also limits how much of the model's computation the lens sees.</li>
+    </ul>
+
+    <h2>Looking Ahead</h2>
+
+    <p>The Jacobian lens sits at the boundary between observational and mechanistic tooling. Its readouts are observational (a translation of activations into vocabulary), but its construction is causal, and its vectors compose additively with the model's weights in a way that makes them natural handles for intervention. Two directions build directly on this.</p>
+
+    <p>First, decomposing an activation as a sparse combination of J-lens vectors gives an interpretation not unlike a <a href="/topics/sparse-autoencoders/">sparse autoencoder</a>, but with an interpretable, token-indexed dictionary built from the model's own weights rather than a learned decoder. The paper formalizes this as the <strong>J-space</strong>.</p>
+
+    <p>Second, once we can read a direction that means "the model is about to say $t$," we can also <em>write</em> it. Swapping and injecting along J-lens vectors is a lightweight form of concept-level <a href="/topics/addition-steering/">steering</a>, and gives a clean causal test that the direction really is doing what the lens says. This mirrors the shift from observation to causation covered under <a href="/topics/activation-patching/">activation patching</a> and its relatives.</p>
+
+    <h2 appendix>Glossary</h2>
+
+    <dl class="glossary">
+      <dt id="logit-lens">Logit Lens</dt>
+      <dd>Applies the model's unembedding matrix $W_U$ directly to an intermediate residual stream $\mathbf{h}_\ell$ and reads off a vocabulary distribution. Works in late layers, where the residual stream already lives in a basis close to the final layer; fails earlier because the coordinates have not yet been rotated into the basis $W_U$ expects.</dd>
+
+      <dt id="tuned-lens">Tuned Lens</dt>
+      <dd>A per-layer linear correction, learned to match the final-layer output distribution. Unlike the Jacobian lens, the map is fitted to outputs on a training set rather than derived from the model's own weights.</dd>
+
+      <dt>Jacobian Lens</dt>
+      <dd>A vocabulary-projection method that translates intermediate residual streams to output logits using the Jacobian of the final residual stream with respect to an intermediate layer, averaged over positions and contexts. Unlike the tuned lens, its linear map is derived from the model's own weights rather than learned.</dd>
+
+      <dt>Jacobian Matrix</dt>
+      <dd>For a vector-valued function f: &#8477;&#8319; &rarr; &#8477;&#7504;, the matrix of all first-order partial derivatives. Entry (i, j) records how output component i responds to a small change in input component j. Its shape is m &times; n.</dd>
+
+      <dt>First-Order Approximation</dt>
+      <dd>The linear approximation of a function near a point, built from its first derivative (or Jacobian in higher dimensions). Formally, f(x + &Delta;x) &asymp; f(x) + J&middot;&Delta;x. The name refers to the first term of the Taylor expansion; higher-order corrections are ignored.</dd>
+
+      <dt>J-Space</dt>
+      <dd>The subspace of residual-stream activations spanned by sparse non-negative combinations of J-lens vectors. Empirically, this space carries the concepts the model is "poised to verbalize" at a given layer and position.</dd>
+    </dl>
+  </d-article>
+
+  <d-appendix>
+    <d-bibliography src="bibliography.bib"></d-bibliography>
+  </d-appendix>
+
+  <distill-footer></distill-footer>
+
+<style>
+.jl-figure { margin: 2rem 0; max-width: 100%; }
+.jl-diagram {
+  background: var(--color-background, #fff);
+  border: 1px solid var(--color-border, rgba(0,0,0,0.1));
+  border-radius: var(--radius-lg, 8px);
+  padding: 1rem;
+  overflow: visible;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.jl-diagram svg { display: block; width: 100%; height: auto; max-width: 100%; }
+.jl-controls {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, rgba(0,0,0,0.6));
+}
+.jl-controls label { display: flex; align-items: center; gap: 0.5rem; }
+.jl-controls input[type="range"] { width: 160px; accent-color: var(--color-link, #012169); }
+.jl-toggle { user-select: none; }
+.jl-readout {
+  margin-top: 0.5rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary, rgba(0,0,0,0.6));
+}
+</style>
+
+<script>
+(function () {
+  var svgNS = "http://www.w3.org/2000/svg";
+  var themeAware = function () {
+    var isDark = document.documentElement.getAttribute("data-theme") === "dark"
+      || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+          && document.documentElement.getAttribute("data-theme") !== "light");
+    return {
+      fg: isDark ? "#e6e6e6" : "#222222",
+      fgMuted: isDark ? "#a0a0a0" : "#666666",
+      grid: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+      curve: "#5b6abf",
+      tangent: "#c04949",
+      truePoint: "#2f9e5a",
+      predPoint: "#c04949",
+      accent: "#5b6abf",
+      accent2: "#c76b28",
+      surface: isDark ? "#1c1e26" : "#ffffff",
+      surfaceAlt: isDark ? "#252833" : "#f5f5f8",
+      layer: isDark ? "#333747" : "#dfe3ee",
+      layerActive: "#5b6abf",
+      layerCollapsed: "#c76b28"
+    };
+  };
+  function el(tag, attrs) {
+    var e = document.createElementNS(svgNS, tag);
+    if (attrs) for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  // --- Jacobian shape diagram (static) ---
+  function renderShape() {
+    var host = document.getElementById("jl-shape-plot");
+    if (!host) return;
+    var C = themeAware();
+    function draw() {
+      C = themeAware();
+      while (host.firstChild) host.removeChild(host.firstChild);
+      var cellS = 26, n = 6;
+      var side = n * cellS;
+      var matX = 248, matY = 28;
+      var stripY = matY + side / 2 - cellS / 2;
+      var inX = 46;
+      var g1 = el("g");
+      g1.appendChild(el("rect", { x: inX, y: stripY, width: side, height: cellS, fill: C.surfaceAlt, stroke: C.grid }));
+      for (var i = 1; i < n; i++) {
+        g1.appendChild(el("line", { x1: inX + i * cellS, y1: stripY, x2: inX + i * cellS, y2: stripY + cellS, stroke: C.grid }));
+      }
+      var lab1 = el("text", { x: inX + side / 2, y: stripY - 10, fill: C.fg, "font-size": 13, "text-anchor": "middle" });
+      lab1.textContent = "h_ℓ";
+      g1.appendChild(lab1);
+      var lab1b = el("text", { x: inX + side / 2, y: stripY + cellS + 18, fill: C.fgMuted, "font-size": 11, "text-anchor": "middle" });
+      lab1b.textContent = "1 × d_model";
+      g1.appendChild(lab1b);
+      host.appendChild(g1);
+      var g2 = el("g");
+      g2.appendChild(el("rect", { x: matX, y: matY, width: side, height: side, fill: C.surfaceAlt, stroke: C.grid }));
+      for (var r = 1; r < n; r++) {
+        g2.appendChild(el("line", { x1: matX, y1: matY + r * cellS, x2: matX + side, y2: matY + r * cellS, stroke: C.grid }));
+      }
+      for (var c = 1; c < n; c++) {
+        g2.appendChild(el("line", { x1: matX + c * cellS, y1: matY, x2: matX + c * cellS, y2: matY + side, stroke: C.grid }));
+      }
+      var jj = 3, ii = 2;
+      g2.appendChild(el("rect", {
+        x: matX + ii * cellS, y: matY + jj * cellS,
+        width: cellS, height: cellS,
+        fill: C.accent, opacity: 0.35
+      }));
+      var lab2 = el("text", { x: matX + side / 2, y: matY - 10, fill: C.fg, "font-size": 13, "text-anchor": "middle" });
+      lab2.textContent = "J_ℓ  =  (∂h_final / ∂h_ℓ)ᵀ";
+      g2.appendChild(lab2);
+      var lab2b = el("text", { x: matX + side / 2, y: matY + side + 18, fill: C.fgMuted, "font-size": 11, "text-anchor": "middle" });
+      lab2b.textContent = "d_model × d_model";
+      g2.appendChild(lab2b);
+      host.appendChild(g2);
+      var eqX = matX + side + 26;
+      var eqLabel = el("text", { x: eqX, y: stripY + cellS / 2 + 6, fill: C.fg, "font-size": 20, "text-anchor": "middle" });
+      eqLabel.textContent = "≈";
+      host.appendChild(eqLabel);
+      var outX = eqX + 22;
+      var g3 = el("g");
+      g3.appendChild(el("rect", { x: outX, y: stripY, width: side, height: cellS, fill: C.surfaceAlt, stroke: C.grid }));
+      for (var i2 = 1; i2 < n; i2++) {
+        g3.appendChild(el("line", { x1: outX + i2 * cellS, y1: stripY, x2: outX + i2 * cellS, y2: stripY + cellS, stroke: C.grid }));
+      }
+      var lab3 = el("text", { x: outX + side / 2, y: stripY - 10, fill: C.fg, "font-size": 13, "text-anchor": "middle" });
+      lab3.textContent = "h_final";
+      g3.appendChild(lab3);
+      var lab3b = el("text", { x: outX + side / 2, y: stripY + cellS + 18, fill: C.fgMuted, "font-size": 11, "text-anchor": "middle" });
+      lab3b.textContent = "1 × d_model";
+      g3.appendChild(lab3b);
+      host.appendChild(g3);
+      var callX = matX - 60, callY = matY + side + 30;
+      var srcX = matX + (ii + 0.5) * cellS, srcY = matY + (jj + 0.5) * cellS;
+      host.appendChild(el("line", {
+        x1: srcX, y1: srcY, x2: callX + 20, y2: callY + 6,
+        stroke: C.accent, "stroke-width": 1.2, "stroke-dasharray": "3 3"
+      }));
+      var callText = el("foreignObject", { x: callX, y: callY, width: 400, height: 62 });
+      callText.innerHTML = '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:12px;line-height:1.45;text-align:left;color:' + C.fg + ';">Entry (<em>j</em>, <em>i</em>) = ∂(h_final)_<em>i</em> / ∂(h_ℓ)_<em>j</em>: how a nudge to input component <em>j</em> shifts output component <em>i</em>. Rows index the input, so the matrix acts on h_ℓ from the right.</div>';
+      host.appendChild(callText);
+    }
+    draw();
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+    }
+    new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  }
+  // --- Averaging Jacobians diagram ---
+  function renderAveraging() {
+    var host = document.getElementById("jl-avg-plot");
+    var nIn = document.getElementById("jl-avg-n");
+    var readout = document.getElementById("jl-avg-readout");
+    if (!host || !nIn) return;
+    var C = themeAware();
+    var K = 12;
+    var base = [];
+    for (var i = 0; i < K; i++) {
+      base[i] = [];
+      for (var j = 0; j < K; j++) {
+        var v = Math.exp(-((i - 3) * (i - 3) + (j - 8) * (j - 8)) / 8)
+              - 0.6 * Math.exp(-((i - 9) * (i - 9) + (j - 3) * (j - 3)) / 6);
+        base[i][j] = v;
+      }
+    }
+    function noise(i, j, k) {
+      var s = Math.sin(12.9898 * i + 78.233 * j + 37.719 * k + 3.14) * 43758.5453;
+      return (s - Math.floor(s)) - 0.5;
+    }
+    function draw() {
+      C = themeAware();
+      while (host.firstChild) host.removeChild(host.firstChild);
+      var cellSize = 13;
+      var boxW = K * cellSize, boxH = K * cellSize;
+      var gapX = 25;
+      var startX = 30;
+      var startY = 32;
+      var labels = ["prompt 1", "prompt 2", "prompt 3", "average"];
+      var N = parseInt(nIn.value, 10);
+      function panelMatrix(idx) {
+        var m = [];
+        for (var i = 0; i < K; i++) {
+          m[i] = [];
+          for (var j = 0; j < K; j++) {
+            if (idx < 3) {
+              m[i][j] = base[i][j] + 0.9 * noise(i, j, idx + 1);
+            } else {
+              var s = 0;
+              for (var k = 1; k <= N; k++) s += base[i][j] + 0.9 * noise(i, j, k);
+              m[i][j] = s / N;
+            }
+          }
+        }
+        return m;
+      }
+      function drawPanel(px, py, m, label) {
+        var mx = 0;
+        for (var i = 0; i < K; i++) for (var j = 0; j < K; j++) if (Math.abs(m[i][j]) > mx) mx = Math.abs(m[i][j]);
+        if (mx < 1e-9) mx = 1;
+        for (var i = 0; i < K; i++) {
+          for (var j = 0; j < K; j++) {
+            var v = m[i][j] / mx;
+            var color;
+            if (v >= 0) {
+              var a = Math.min(1, v);
+              color = "rgba(91,106,191," + a.toFixed(3) + ")";
+            } else {
+              var a2 = Math.min(1, -v);
+              color = "rgba(199,107,40," + a2.toFixed(3) + ")";
+            }
+            var r = el("rect", {
+              x: px + j * cellSize, y: py + i * cellSize,
+              width: cellSize, height: cellSize, fill: color, stroke: "rgba(0,0,0,0.06)"
+            });
+            host.appendChild(r);
+          }
+        }
+        var lab = el("text", { x: px + boxW / 2, y: py - 10, fill: C.fg, "font-size": 12, "text-anchor": "middle" });
+        lab.textContent = label;
+        host.appendChild(lab);
+      }
+      for (var idx = 0; idx < 4; idx++) {
+        var px = startX + idx * (boxW + gapX);
+        drawPanel(px, startY, panelMatrix(idx), labels[idx]);
+      }
+      var noteX = startX;
+      var noteY = startY + boxH + 30;
+      var note = el("text", { x: noteX, y: noteY, fill: C.fgMuted, "font-size": 12 });
+      note.textContent = "Blue = positive entry; orange = negative. Noise averages toward zero as N grows; structure remains.";
+      host.appendChild(note);
+      readout.innerHTML = "Averaging over N = <strong>" + N + "</strong> prompts.";
+    }
+    nIn.addEventListener("input", draw);
+    draw();
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+    }
+    new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  }
+  // --- Layer compression diagram ---
+  function renderLayers() {
+    var host = document.getElementById("jl-layers-plot");
+    var lIn = document.getElementById("jl-layers-l");
+    var toggle = document.getElementById("jl-layers-toggle");
+    if (!host || !lIn || !toggle) return;
+    var C = themeAware();
+    var TOTAL = 8;
+    function draw() {
+      C = themeAware();
+      while (host.firstChild) host.removeChild(host.firstChild);
+      var W = 820, H = 340;
+      var ellLayer = parseInt(lIn.value, 10);
+      var collapse = toggle.checked;
+      var boxW = 62, boxH = 34, gap = 12;
+      var totalW = TOTAL * boxW + (TOTAL - 1) * gap;
+      var startX = (W - totalW) / 2;
+      var y = 90;
+      var visible = ellLayer + 1;
+      var t = el("text", { x: W / 2, y: 30, fill: C.fg, "font-size": 14, "text-anchor": "middle" });
+      t.textContent = collapse ? "J-lens view: layers ℓ+1…L collapsed to J_ℓ" : "Full model: h_ℓ passes through every remaining layer";
+      host.appendChild(t);
+      if (!collapse) {
+        for (var i = 0; i < TOTAL; i++) {
+          var x = startX + i * (boxW + gap);
+          var isEll = (i === ellLayer);
+          var fill = isEll ? "#e8b400" : C.layer;
+          var box = el("rect", {
+            x: x, y: y, width: boxW, height: boxH,
+            rx: 4, ry: 4,
+            fill: fill, stroke: isEll ? "#8a6a00" : C.grid, "stroke-width": isEll ? 1.5 : 1
+          });
+          host.appendChild(box);
+          var lab = el("text", { x: x + boxW / 2, y: y + boxH / 2 + 4, fill: C.fg, "font-size": 12, "text-anchor": "middle" });
+          lab.textContent = (i === TOTAL - 1 ? "L" : "layer " + i);
+          host.appendChild(lab);
+          if (i < TOTAL - 1) {
+            var ax = x + boxW, ay = y + boxH / 2;
+            host.appendChild(el("line", { x1: ax, y1: ay, x2: ax + gap, y2: ay, stroke: C.fgMuted, "stroke-width": 1.5 }));
+          }
+        }
+      } else {
+        var groupW = visible * boxW + (visible - 1) * gap;
+        var jBoxW = 130, jGap = gap;
+        var unBoxW = 90;
+        var totalCollapsedW = groupW + jGap + jBoxW + jGap + unBoxW;
+        var sx = (W - totalCollapsedW) / 2;
+        for (var i = 0; i < visible; i++) {
+          var x = sx + i * (boxW + gap);
+          var isEll = (i === ellLayer);
+          var fill = isEll ? "#e8b400" : C.layer;
+          host.appendChild(el("rect", { x: x, y: y, width: boxW, height: boxH, rx: 4, ry: 4, fill: fill, stroke: isEll ? "#8a6a00" : C.grid, "stroke-width": isEll ? 1.5 : 1 }));
+          var lab = el("text", { x: x + boxW / 2, y: y + boxH / 2 + 4, fill: C.fg, "font-size": 12, "text-anchor": "middle" });
+          lab.textContent = "layer " + i;
+          host.appendChild(lab);
+          if (i < visible - 1) {
+            host.appendChild(el("line", { x1: x + boxW, y1: y + boxH / 2, x2: x + boxW + gap, y2: y + boxH / 2, stroke: C.fgMuted, "stroke-width": 1.5 }));
+          }
+        }
+        var lastX = sx + (visible - 1) * (boxW + gap) + boxW;
+        host.appendChild(el("line", { x1: lastX, y1: y + boxH / 2, x2: lastX + jGap, y2: y + boxH / 2, stroke: C.fgMuted, "stroke-width": 1.5 }));
+        var jX = lastX + jGap;
+        host.appendChild(el("rect", { x: jX, y: y - 4, width: jBoxW, height: boxH + 8, rx: 4, ry: 4, fill: C.layerCollapsed, stroke: "#7a3a15", "stroke-width": 1.5, opacity: 0.9 }));
+        var jLab = el("text", { x: jX + jBoxW / 2, y: y + boxH / 2 + 5, fill: "#ffffff", "font-size": 12, "font-weight": "600", "text-anchor": "middle" });
+        jLab.textContent = "J_ℓ (linear map)";
+        host.appendChild(jLab);
+        host.appendChild(el("line", { x1: jX + jBoxW, y1: y + boxH / 2, x2: jX + jBoxW + jGap, y2: y + boxH / 2, stroke: C.fgMuted, "stroke-width": 1.5 }));
+        var unX = jX + jBoxW + jGap;
+        host.appendChild(el("rect", { x: unX, y: y, width: unBoxW, height: boxH, rx: 4, ry: 4, fill: C.accent, stroke: "#3a4680", "stroke-width": 1 }));
+        var unLab = el("text", { x: unX + unBoxW / 2, y: y + boxH / 2 + 5, fill: "#ffffff", "font-size": 12, "font-weight": "600", "text-anchor": "middle" });
+        unLab.textContent = "norm · W_U";
+        host.appendChild(unLab);
+        host.appendChild(el("line", { x1: unX + unBoxW, y1: y + boxH / 2, x2: unX + unBoxW + 30, y2: y + boxH / 2, stroke: C.fgMuted, "stroke-width": 1.5 }));
+        var out = el("text", { x: unX + unBoxW + 40, y: y + boxH / 2 + 5, fill: C.truePoint, "font-size": 12, "font-weight": "600" });
+        out.textContent = "lens(h_ℓ)";
+        host.appendChild(out);
+      }
+      var ellBoxIdx = ellLayer;
+      var xEll;
+      if (!collapse) xEll = startX + ellBoxIdx * (boxW + gap);
+      else {
+        var sxc = (W - (visible * boxW + (visible - 1) * gap + gap + 130 + gap + 90)) / 2;
+        xEll = sxc + ellBoxIdx * (boxW + gap);
+      }
+      var arrow = el("line", { x1: xEll + boxW / 2, y1: y + boxH + 8, x2: xEll + boxW / 2, y2: y + boxH + 34, stroke: C.fgMuted, "stroke-width": 1 });
+      host.appendChild(arrow);
+      var arrLab = el("text", { x: xEll + boxW / 2, y: y + boxH + 50, fill: "#8a6a00", "font-size": 12, "text-anchor": "middle", "font-weight": "600" });
+      arrLab.textContent = "h_ℓ (input to lens)";
+      host.appendChild(arrLab);
+      var expY = 250;
+      var text = el("foreignObject", { x: 50, y: expY, width: W - 100, height: 90 });
+      var body = collapse
+        ? 'The Jacobian lens replaces the boxed non-linear stack (layers ℓ+1 through L) with a single linear map <span style="color:' + C.layerCollapsed + ';font-weight:600">J_ℓ</span>, which was pre-computed as the average of <span style="font-family:serif;font-style:italic">(∂h_L/∂h_ℓ)ᵀ</span> across positions and prompts. The output is a first-order approximation of what the model would have produced from h_ℓ.'
+        : 'The residual stream at layer ℓ (yellow) propagates through every remaining layer before the model applies norm and W_U. Turn on the "J-lens replacement" toggle to see the collapsed view.';
+      text.innerHTML = '<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:13px;line-height:1.5;color:' + C.fg + ';">' + body + '</div>';
+      host.appendChild(text);
+    }
+    lIn.addEventListener("input", draw);
+    toggle.addEventListener("change", draw);
+    draw();
+    if (window.matchMedia) {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw);
+    }
+    new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  }
+  function init() {
+    renderShape();
+    renderAveraging();
+    renderLayers();
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>

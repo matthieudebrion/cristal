@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Matthieu de Brion</title>
+  <meta name="description" content="Working notes and longer articles on how models work and what that implies.">
+  <style>
+    :root {
+      --sans: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+        "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+      --serif: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell,
+        "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif;
+      --duke-blue: #012169;
+      --color-dark: #1f1f1e;
+      --color-light: #f6f6f4;
+      --rule: rgba(0, 0, 0, 0.1);
+      --indent: 0px;
+    }
+
+    html {
+      font-size: 16px;
+      line-height: 1.6em;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      background: #fff;
+      color: var(--color-dark);
+      font-family: var(--sans);
+    }
+
+    a { color: var(--duke-blue); }
+
+    /* Masthead */
+
+    .article-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 10px 10px 20px;
+      box-sizing: border-box;
+    }
+
+    .article-header a.logo { display: flex; text-decoration: none; }
+    .article-header a.logo svg { display: block; overflow: visible; width: 42px; height: 32px; }
+    .article-header a.logo polygon {
+      stroke: #fff;
+      stroke-width: 1.15;
+      stroke-linejoin: miter;
+      vector-effect: non-scaling-stroke;
+    }
+    .article-header a.logo .cube {
+      pointer-events: bounding-box;
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: transform 0.12s ease;
+    }
+    .article-header a.logo .face-top { fill: #cfe0f4; }
+    .article-header a.logo .face-left { fill: #7a9ccc; }
+    .article-header a.logo .face-right { fill: #4568a4; }
+    .article-header a.logo .cube:nth-child(odd) .face-top { fill: #dce8f7; }
+    .article-header a.logo .cube:nth-child(3n) .face-left { fill: #6b8ec4; }
+    .article-header a.logo .cube:nth-child(3n+1) .face-right { fill: #3a5a96; }
+    .article-header a.logo .cube:hover { transform: translate(0, -1.2px); }
+    .article-header a.logo .cube:hover .face-top { fill: #f2f7fd; }
+    .article-header a.logo .cube:hover .face-left { fill: #8aa8d6; }
+    .article-header a.logo .cube:hover .face-right { fill: var(--duke-blue); }
+    .article-header .home-link { font-size: 100%; color: #333; text-decoration: none; }
+    .article-header .home-link:hover { color: var(--duke-blue); }
+
+    /* Title block */
+
+    .title {
+      margin: auto;
+      max-width: 840px;
+      padding: 0 20px;
+      text-align: left;
+    }
+
+    .title h1 {
+      margin: 80px 0 0;
+      font-family: var(--sans);
+      font-size: 40px;
+      font-weight: 600;
+      line-height: 1.2em;
+      letter-spacing: -0.03em;
+    }
+
+    .title h1 > span { display: block; }
+
+    .title p {
+      max-width: 500px;
+      font-family: var(--serif);
+      line-height: 1.5em;
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    /* Thread */
+
+    .container {
+      margin: 80px auto;
+      max-width: 840px;
+      padding: 0 20px;
+      font-family: var(--serif);
+    }
+
+    .container .date {
+      margin-bottom: 15px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--rule);
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 400;
+      text-transform: uppercase;
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    .container .date:not(:first-child) { margin-top: 50px; }
+
+    .note,
+    .paper {
+      display: block;
+      padding-left: var(--indent);
+      color: var(--color-dark);
+      line-height: 1.5em;
+      text-decoration: none;
+    }
+
+    .note {
+      margin-top: 10px;
+      padding-top: 14px;
+      padding-bottom: 14px;
+      padding-right: 16px;
+    }
+
+    .note h3 {
+      display: inline;
+      margin: 0 5px 0 0;
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.2em;
+      letter-spacing: -0.03em;
+    }
+
+    .note .description { display: inline; font-size: 15px; color: rgba(0, 0, 0, 0.7); }
+
+    .paper {
+      display: flow-root;
+      margin-bottom: 20px;
+      padding-top: 22px;
+      padding-bottom: 22px;
+      padding-right: 16px;
+    }
+
+    .paper img {
+      float: right;
+      width: 120px;
+      height: 120px;
+      margin-left: 30px;
+      padding: 8px;
+      border-radius: 8px;
+      background: var(--color-light);
+      overflow: hidden;
+    }
+
+    .paper h3 {
+      margin: 0 0 6px;
+      font-family: var(--sans);
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1.2em;
+      letter-spacing: -0.03em;
+    }
+
+    .paper .byline {
+      margin-bottom: 4px;
+      font-family: var(--sans);
+      font-size: 11px;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+
+    .paper .description { font-size: 15px; color: rgba(0, 0, 0, 0.7); }
+
+    .note + .note,
+    .paper + .note { padding-top: 10px; border-top: 1px solid var(--rule); }
+
+    .note + .paper,
+    .paper + .paper { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--rule); }
+
+    .note:hover h3,
+    .paper:hover h3 { text-decoration: underline; text-decoration-color: var(--duke-blue); }
+
+    .rss { margin-top: 28px; font-size: 14px; }
+    .rss a { color: var(--color-dark); }
+
+    @media (min-width: 480px) {
+      .note h3 { font-size: 17px; }
+      .paper h3 { font-size: 26px; }
+      .paper img { width: 170px; height: 170px; }
+    }
+
+    /* Date and title share a grid row so their tops line up. */
+    @media (min-width: 768px) {
+      .title { padding-left: 160px; }
+
+      .toc {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        column-gap: 20px;
+        align-items: start;
+      }
+
+      .container .date {
+        grid-column: 1;
+        width: auto;
+        height: auto;
+        margin: 0;
+        /* 22px matches .paper; extra 6px meets the 28px title cap height. */
+        padding: 28px 0 0;
+        border: none;
+        line-height: 1;
+        color: rgba(0, 0, 0, 0.6);
+      }
+
+      .paper,
+      .note { grid-column: 2; }
+
+      .paper h3 { font-size: 28px; }
+      .paper img { width: 220px; height: 220px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="article-header">
+    <a class="logo" href="./" aria-label="Home">
+      <svg width="42" height="32" viewBox="-27.38 -8.90 48.27 36.55" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-6.50,-3.75 0.00,0.00 0.00,7.50 -6.50,3.75"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="6.50,-3.75 0.00,0.00 0.00,7.50 6.50,3.75"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="0.00,-7.50 6.50,-3.75 0.00,0.00 -6.50,-3.75"/>
+        </g>
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-12.99,0.00 -6.50,3.75 -6.50,11.25 -12.99,7.50"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="0.00,0.00 -6.50,3.75 -6.50,11.25 0.00,7.50"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-6.50,-3.75 0.00,0.00 -6.50,3.75 -12.99,0.00"/>
+        </g>
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="0.00,0.00 6.50,3.75 6.50,11.25 0.00,7.50"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="12.99,0.00 6.50,3.75 6.50,11.25 12.99,7.50"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="6.50,-3.75 12.99,0.00 6.50,3.75 0.00,0.00"/>
+        </g>
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-19.49,3.75 -12.99,7.50 -12.99,15.00 -19.49,11.25"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-6.50,3.75 -12.99,7.50 -12.99,15.00 -6.50,11.25"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-12.99,0.00 -6.50,3.75 -12.99,7.50 -19.49,3.75"/>
+        </g>
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="6.50,3.75 12.99,7.50 12.99,15.00 6.50,11.25"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="19.49,3.75 12.99,7.50 12.99,15.00 19.49,11.25"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="12.99,0.00 19.49,3.75 12.99,7.50 6.50,3.75"/>
+        </g>
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-25.98,7.50 -19.49,11.25 -19.49,18.75 -25.98,15.00"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-12.99,7.50 -19.49,11.25 -19.49,18.75 -12.99,15.00"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-19.49,3.75 -12.99,7.50 -19.49,11.25 -25.98,7.50"/>
+        </g>
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-19.49,11.25 -12.99,15.00 -12.99,22.50 -19.49,18.75"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-6.50,11.25 -12.99,15.00 -12.99,22.50 -6.50,18.75"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-12.99,7.50 -6.50,11.25 -12.99,15.00 -19.49,11.25"/>
+        </g>
+        <g class="cube">
+          <polygon class="face-left" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-12.99,15.00 -6.50,18.75 -6.50,26.25 -12.99,22.50"/>
+          <polygon class="face-right" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="0.00,15.00 -6.50,18.75 -6.50,26.25 0.00,22.50"/>
+          <polygon class="face-top" stroke="#fff" stroke-width="0.85" stroke-linejoin="miter" points="-6.50,11.25 0.00,15.00 -6.50,18.75 -12.99,15.00"/>
+        </g>
+      </svg>
+    </a>
+    <a class="home-link" href="./">Cristal</a>
+  </div>
+
+  <div class="title">
+    <h1><span>Matthieu</span><span>de Brion</span></h1>
+    <p>Working notes and longer articles on how models work and what that
+       implies: interpretability, the mathematics of transformers, path
+       dependence, multi-agent safety, and whatever the next note actually is.</p>
+  </div>
+
+  <div class="container">
+    <div class="toc">
+
+      <div class="date">Aug 2026</div>
+
+      <a class="paper" href="jacobian-lens.html">
+        <h3>The Jacobian Lens</h3>
+        <div class="byline">Matthieu de Brion</div>
+        <div class="description">Using the model's averaged Jacobian to translate
+          intermediate residual states into vocabulary predictions, without training
+          a separate probe. Builds the ideas of Jacobian, first-order approximation,
+          and linearization from scratch, then compares the J-lens against the logit
+          and tuned lenses.</div>
+      </a>
+
+      <!-- Template rows. Copy one of these per entry.
+
+      A short note: title and description run together on one line.
+
+      <a class="note" href="URL">
+        <h3>Title of the note</h3>
+        <div class="description">One or two sentences.</div>
+      </a>
+
+      A full article: optional thumbnail floats right.
+
+      <a class="paper" href="URL">
+        <img src="thumbnail.png" alt="">
+        <h3>Title of the article</h3>
+        <div class="byline">Authors</div>
+        <div class="description">A paragraph of summary.</div>
+      </a>
+
+      Start a new date group with:
+
+      <div class="date">Sep 2026</div>
+
+      -->
+
+    </div>
+
+    <div class="rss"><a href="rss.xml">RSS</a></div>
+  </div>
+</body>
+</html>

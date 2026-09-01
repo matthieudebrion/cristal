@@ -1,0 +1,848 @@
+/*
+ * Document chrome: design tokens, section numbering, the numbered margin
+ * table of contents with its floating narrow-viewport drawer, and the
+ * wide-figure system.
+ *
+ * Layered on top of styles-modern.css. Duke Blue stays the only chromatic
+ * value; everything here is neutral unless it is a link or an active state.
+ */
+
+:root {
+  --text: #333;
+  --text-light: #888;
+  --text-faint: #bbb;
+  --text-dark: #000;
+  --gray-100: #fafafa;
+  --gray-200: #eee;
+  --gray-300: #ddd;
+  --gray-400: #bbb;
+  --gray-700: #333;
+  --gray-900: #111;
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-title: 15px;
+  --fs-figure: 14px;
+  --fs-body: 13px;
+  --fs-small: 12px;
+  --fs-label: 11px;
+  --lh-heading: 1.3;
+  --tok-bg: #fafafa;
+}
+
+/* ****************************************
+ * Section numbers
+ *
+ * The number is a separate anchor so it can be linked and copied
+ * independently of the heading text.
+ ******************************************/
+
+d-article a.secnum {
+  color: var(--text-light);
+  font-weight: 400;
+  margin-right: 0.55em;
+  text-decoration: none;
+  border-bottom: none;
+}
+
+d-article a.secnum:hover {
+  color: var(--text);
+  border-bottom: none;
+}
+
+d-article h2 > a[id],
+d-article h3 > a[id],
+d-article h4 > a[id] {
+  color: inherit;
+  border-bottom: none;
+  text-decoration: none;
+}
+
+/* ****************************************
+ * Table of contents
+ ******************************************/
+
+d-contents,
+d-toc {
+  display: block;
+  place-self: start;
+  padding-bottom: 0.5em;
+  padding-left: 0.25em;
+  margin-bottom: 1em;
+  border-bottom: 1px solid var(--rule, rgba(0, 0, 0, 0.1));
+  font-family: var(--font-sans);
+}
+
+@media (max-width: 1199px) {
+  d-contents,
+  d-toc {
+    display: none;
+  }
+}
+
+@media (min-width: 1200px) {
+  d-contents,
+  d-toc {
+    position: sticky;
+    top: 1rem;
+    align-self: start;
+    justify-self: end;
+    grid-column: screen-start / text-start;
+    grid-row: 1 / span 80;
+    box-sizing: border-box;
+    width: min(220px, 100%);
+    max-height: calc(100vh - 2rem);
+    margin-top: 0;
+    padding: 0 1.25em 1.5em 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-right: 1px solid var(--rule, rgba(0, 0, 0, 0.1));
+    border-bottom: none;
+  }
+}
+
+d-contents nav h3,
+d-toc nav h3 {
+  margin: 0 0 1em;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+d-contents nav > div,
+d-toc nav > div {
+  display: block;
+  outline: none;
+  margin-top: 0.7em;
+  margin-bottom: 0.3em;
+  color: var(--text);
+  font-weight: 700;
+}
+
+d-contents nav > div > a,
+d-toc nav > div > a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  font-size: var(--fs-figure);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+d-contents nav > ul > li > a,
+d-toc nav > ul > li > a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  font-size: var(--fs-body);
+  line-height: 1.3;
+}
+
+d-contents nav a,
+d-toc nav a,
+d-article d-toc nav a {
+  color: var(--text);
+  border-bottom: none;
+  text-decoration: none;
+}
+
+d-contents nav a:hover,
+d-toc nav a:hover,
+d-article d-toc nav a:hover {
+  border-bottom: none;
+  text-decoration: underline solid rgba(1, 33, 105, 0.6);
+}
+
+d-contents nav a.active,
+d-toc nav a.active,
+d-article d-toc nav a.active {
+  color: var(--duke-blue, #012169);
+}
+
+d-contents nav > div > a:hover,
+d-contents nav > ul > li > a:hover,
+d-toc nav > div > a:hover,
+d-toc nav > ul > li > a:hover {
+  text-decoration: none;
+  color: var(--duke-blue, #012169);
+}
+
+d-contents li,
+d-toc li {
+  list-style-type: none;
+}
+
+d-contents ul,
+d-toc ul,
+d-article d-toc ul {
+  padding-left: 1em;
+  margin-top: 0;
+  margin-bottom: 6px;
+}
+
+d-contents nav ul li,
+d-toc nav ul li {
+  margin-bottom: 0.25em;
+}
+
+.toc-num {
+  flex: none;
+  min-width: 0;
+  margin-right: 0;
+  color: var(--text-light);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scroll-spy label */
+
+d-tochead {
+  display: block;
+  padding: 10px 12px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+d-tochead .toc-num {
+  display: block;
+  min-width: 0;
+  margin: 0 0 2px;
+  font-size: var(--fs-label);
+  font-weight: 400;
+  color: var(--text-light);
+}
+
+/* Floating drawer, shown once the margin TOC is out of reach or scrolled past */
+
+.toc-float {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100000;
+  display: none;
+  font-family: var(--font-sans);
+}
+
+.toc-float.show {
+  display: block;
+}
+
+.toc-float-btn {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(290px, 100vw - 24px);
+  padding: 4px 12px 5px;
+  font: 600 13px/1.4 var(--font-sans);
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.toc-float-btn:hover {
+  background: var(--gray-100);
+}
+
+.toc-float-btn .ico {
+  position: relative;
+  top: -1px;
+  margin-right: 6px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.toc-float-btn .lbl {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc-float-btn .lbl .num {
+  font-weight: 400;
+  color: var(--text-light);
+}
+
+.toc-float-menu {
+  display: none;
+  position: absolute;
+  top: 36px;
+  left: 0;
+  width: 290px;
+  max-height: 75vh;
+  overflow-y: auto;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.toc-float.open .toc-float-menu {
+  display: block;
+}
+
+.toc-float-menu nav h3 {
+  display: none;
+}
+
+.toc-float-menu nav div {
+  margin: 6px 0 2px;
+  font-weight: 600;
+}
+
+.toc-float-menu nav ul {
+  margin: 0 0 6px;
+  padding-left: 0;
+  list-style: none;
+}
+
+.toc-float-menu nav li {
+  margin: 1px 0;
+}
+
+.toc-float-menu nav a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3em;
+  padding: 2px 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: none;
+}
+
+.toc-float-menu nav a:hover {
+  color: var(--duke-blue, #012169);
+  text-decoration: underline;
+}
+
+/* ****************************************
+ * Byline
+ ******************************************/
+
+.d-byline-container {
+  border-top: 1px solid var(--rule, rgba(0, 0, 0, 0.1));
+  border-bottom: 1px solid var(--rule, rgba(0, 0, 0, 0.1));
+  padding: 20px 0;
+}
+
+.d-byline {
+  grid-column: text;
+  display: grid;
+  grid-template-columns: 5fr 1fr;
+  grid-gap: 20px;
+  font-size: 0.8rem;
+  line-height: 1.8em;
+}
+
+.d-byline h3 {
+  margin: 0 0 4px;
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: var(--ink-faint, rgba(0, 0, 0, 0.5));
+  text-transform: uppercase;
+}
+
+.d-byline .authors div {
+  line-height: 1.5;
+}
+
+.d-byline .authors sup {
+  font-size: 80%;
+  margin-right: -4px;
+}
+
+.d-byline .author {
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.d-byline .info {
+  grid-column: 1 / -1;
+  margin-top: -10px;
+  font-size: 80%;
+  line-height: 1.5;
+  color: var(--ink-faint, rgba(0, 0, 0, 0.5));
+}
+
+.d-byline a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.d-byline a:hover {
+  color: var(--duke-blue, #012169);
+}
+
+/* ****************************************
+ * Figures
+ *
+ * Wide blocks escape the text column by centring on the viewport. Every
+ * child gets min-width:0 so grid and flex children can actually shrink.
+ ******************************************/
+
+.fig-title {
+  margin: 0 0 14px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: var(--lh-heading);
+  color: var(--text);
+}
+
+.fig-wide,
+.figgrid,
+.exbrowser {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1300px, 96vw);
+  margin: 1.2em 0 1.8em;
+}
+
+.figgrid {
+  display: grid;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.figgrid > *,
+.panel-row > *,
+.excols > *,
+.expair > * {
+  min-width: 0;
+}
+
+.figgrid img,
+.exbrowser img {
+  max-width: 100%;
+  height: auto;
+}
+
+.colhead {
+  align-self: end;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-light);
+}
+
+.panel-row {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+/* Circled panel letters */
+
+.panelwrap {
+  position: relative;
+}
+
+.panelletter {
+  position: absolute;
+  top: -9px;
+  left: -9px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gray-700);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Transcript cards */
+
+.card {
+  border: 1px solid var(--gray-300);
+  border-radius: 5px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.card .label {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray-300);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.card .label.clean {
+  background: #eef5ee;
+}
+
+.card .label.ablated {
+  background: #fbeaea;
+}
+
+.card .excerpt {
+  padding: 10px 12px;
+  background: #fcfcfc;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.card .turn {
+  padding: 0 12px;
+  margin-bottom: 7px;
+  background: #fcfcfc;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.card .turn:first-of-type {
+  padding-top: 10px;
+}
+
+.card .turn.answer {
+  padding-bottom: 10px;
+  margin-bottom: 0;
+}
+
+.turn .turnlabel {
+  display: inline-block;
+  margin-right: 6px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-light);
+}
+
+.expair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* Scrollable example browser */
+
+.excols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.excolhead {
+  padding: 6px 10px;
+  border: 1px solid var(--gray-300);
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.excolhead.clean {
+  background: #eef5ee;
+}
+
+.excolhead.ablate {
+  background: #fbeaea;
+}
+
+.exscroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 560px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid var(--gray-300);
+  border-radius: 0 0 5px 5px;
+}
+
+.excard {
+  padding: 8px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.exmeta {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+
+.exscore {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.exprompt {
+  font-size: 11.5px;
+  font-style: italic;
+  color: #555;
+}
+
+.extext {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.caption {
+  margin: 0.5em 0 1.6em;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #555;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+@media (max-width: 767px) {
+  .fig-wide,
+  .figgrid,
+  .exbrowser {
+    left: auto;
+    transform: none;
+    width: auto;
+  }
+
+  .excols,
+  .expair {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-row {
+    flex-direction: column;
+  }
+}
+
+/* A page that supplies its own byline block supersedes the stock one, which
+ * stays in the DOM so front-matter and citation metadata survive. */
+
+body:has(.d-byline-container) d-byline {
+  display: none;
+}
+
+/* ****************************************
+ * Reading type and space
+ *
+ * One modular scale on the Distill text column. Line-height 1.4, paragraph
+ * space 0.7em, headings from the same ratio. Display math is centered in
+ * d-math's shadow CSS (d-math.css), not here.
+ ******************************************/
+
+html {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+d-article {
+  font-size: 1rem;
+  line-height: 1.4;
+  contain: style;
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+d-article p,
+d-article ul,
+d-article ol,
+d-article blockquote {
+  margin-bottom: 0.75rem;
+}
+
+d-title h1 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+d-title p {
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.45;
+  max-width: 34em;
+}
+
+d-article h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 2rem 0 0.75rem;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+d-article h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.5rem 0 0.5rem;
+}
+
+d-article h4 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: none;
+  margin: 1.25rem 0 0.5rem;
+}
+
+d-article a.secnum {
+  font-size: inherit;
+  font-weight: 400;
+  color: var(--ink-faint, rgba(0, 0, 0, 0.5));
+  margin-right: 0.4em;
+}
+
+d-article > d-math[block],
+d-article section > d-math[block] {
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  d-article > d-math[block],
+  d-article section > d-math[block] {
+    overflow: visible;
+  }
+}
+
+d-article li {
+  margin-bottom: 0.35em;
+}
+
+@media (min-width: 768px) {
+  d-article {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  d-article {
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+
+  d-article h2 {
+    font-size: 1.5rem;
+  }
+
+  d-article h3 {
+    font-size: 1.15rem;
+  }
+}
+
+/* ****************************************
+ * Long-form article furniture
+ ******************************************/
+
+/* Boxed definitions. */
+
+d-article .definition {
+  margin: 1.5em 0;
+  padding: 14px 18px;
+  border: 1px solid var(--gray-300);
+  border-left: 3px solid var(--duke-blue, #012169);
+  border-radius: 0 4px 4px 0;
+  background: var(--gray-100);
+  font-size: 0.95em;
+  line-height: 1.6;
+}
+
+d-article .definition strong {
+  color: var(--duke-blue, #012169);
+}
+
+/* Collapsible check-yourself prompts. */
+
+d-article details.pause-and-think {
+  margin: 1.5em 0;
+  padding: 12px 16px;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.95em;
+}
+
+d-article details.pause-and-think > summary {
+  font-family: var(--font-sans);
+  font-size: var(--fs-figure);
+  font-weight: 600;
+  color: var(--duke-blue, #012169);
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+d-article details.pause-and-think > summary:hover {
+  text-decoration: underline;
+}
+
+d-article details.pause-and-think[open] > summary {
+  margin-bottom: 0.75em;
+  padding-bottom: 0.6em;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+d-article details.pause-and-think p:last-child {
+  margin-bottom: 0;
+}
+
+/* Glossary. */
+
+d-article dl.glossary {
+  margin: 1.5em 0;
+}
+
+d-article dl.glossary dt {
+  margin-top: 1.2em;
+  font-weight: 600;
+  color: var(--text);
+  scroll-margin-top: 4em;
+}
+
+d-article dl.glossary dt:target {
+  color: #012169;
+}
+
+d-article dl.glossary dd {
+  margin: 0.35em 0 0;
+  color: var(--ink-soft, rgba(0, 0, 0, 0.6));
+}
+
+/* Diagram figures stay in the text column, same axis as body copy. */
+
+d-article .jl-figure {
+  grid-column: text;
+  min-width: 0;
+}
+
+d-article .jl-figure figcaption {
+  max-width: none;
+}

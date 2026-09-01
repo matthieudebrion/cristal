@@ -21,7 +21,7 @@ componentsConfig.plugins.push(
   serve({
     open: true,
     openPage: "/index.html",
-    contentBase: ["dist", "examples"],
+    contentBase: ["dist", "site", "examples"],
     headers: {
       "Access-Control-Allow-Origin": "*"
     },

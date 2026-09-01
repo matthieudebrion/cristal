@@ -29,7 +29,7 @@ export default function(dom, data) {
   appendHead(`
     <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
     <link rel="icon" type="image/png" href="data:image/png;base64,${favicon}">
-    <link href="/rss.xml" rel="alternate" type="application/rss+xml" title="Articles from Distill">
+    <link href="/rss.xml" rel="alternate" type="application/rss+xml" title="Articles from Cristal">
   `);
 
   if (data.title) {
@@ -73,7 +73,7 @@ export default function(dom, data) {
     <meta property="og:url" content="${data.url}"/>
     <meta property="og:image" content="${data.previewURL}"/>
     <meta property="og:locale" content="en_US" />
-    <meta property="og:site_name" content="Distill" />
+    <meta property="og:site_name" content="Cristal" />
   `);
 
   appendHead(`

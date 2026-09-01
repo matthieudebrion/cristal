@@ -3,77 +3,74 @@ import logo from '../assets/distill-logo.svg';
 export const headerTemplate = `
 <style>
 distill-header {
-  position: relative;
-  height: 60px;
-  background-color: hsl(200, 60%, 15%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
+  padding: 10px 10px 20px;
   box-sizing: border-box;
+  background: none;
+  border-bottom: none;
+  box-shadow: none;
+  position: static;
   z-index: 2;
-  color: rgba(0, 0, 0, 0.8);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
 }
-distill-header .content {
-  height: 70px;
-  grid-column: page;
-}
-distill-header a {
-  font-size: 16px;
-  height: 60px;
-  line-height: 60px;
+
+distill-header a.logo {
+  display: flex;
+  align-items: center;
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.8);
-  padding: 22px 0;
 }
-distill-header a:hover {
-  color: rgba(255, 255, 255, 1);
-}
+
 distill-header svg {
-  width: 24px;
-  position: relative;
-  top: 4px;
-  margin-right: 2px;
+  width: 42px;
+  height: 32px;
+  display: block;
+  overflow: visible;
 }
-@media(min-width: 1080px) {
-  distill-header {
-    height: 70px;
-  }
-  distill-header a {
-    height: 70px;
-    line-height: 70px;
-    padding: 28px 0;
-  }
-  distill-header .logo {
-  }
+
+distill-header svg polygon {
+  stroke: #fff;
+  stroke-width: 1.15;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
 }
-distill-header svg path {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.8);
-  stroke-width: 3px;
+
+distill-header svg .cube {
+  pointer-events: bounding-box;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.12s ease;
 }
-distill-header .logo {
-  font-size: 17px;
-  font-weight: 200;
+
+distill-header svg .face-top { fill: #cfe0f4; }
+distill-header svg .face-left { fill: #7a9ccc; }
+distill-header svg .face-right { fill: #4568a4; }
+distill-header svg .cube:nth-child(odd) .face-top { fill: #dce8f7; }
+distill-header svg .cube:nth-child(3n) .face-left { fill: #6b8ec4; }
+distill-header svg .cube:nth-child(3n+1) .face-right { fill: #3a5a96; }
+
+distill-header svg .cube:hover {
+  transform: translate(0, -1.2px);
 }
-distill-header .nav {
-  float: right;
-  font-weight: 300;
+
+distill-header svg .cube:hover .face-top { fill: #f2f7fd; }
+distill-header svg .cube:hover .face-left { fill: #8aa8d6; }
+distill-header svg .cube:hover .face-right { fill: #012169; }
+
+distill-header a.home-link {
+  font-size: 100%;
+  color: #333;
+  text-decoration: none;
 }
-distill-header .nav a {
-  font-size: 12px;
-  margin-left: 24px;
-  text-transform: uppercase;
+
+distill-header a.home-link:hover {
+  color: #012169;
 }
 </style>
-<div class="content">
-  <a href="/" class="logo">
-    ${logo}
-    Distill
-  </a>
-  <nav class="nav">
-    <a href="/about/">About</a>
-    <a href="/prize/">Prize</a>
-    <a href="/journal/">Submit</a>
-  </nav>
-</div>
+
+<a class="logo" href="/" aria-label="Home">
+  ${logo}
+</a>
+<a class="home-link" href="/">Cristal</a>
 `;

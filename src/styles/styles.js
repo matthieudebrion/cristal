@@ -19,8 +19,10 @@ import byline from './d-byline.css';
 import article from './d-article.css';
 import title from './d-title.css';
 import math from './d-math.css';
+import modern from './styles-modern.css';
+import chrome from './styles-chrome.css';
 
-export const styles = base + layout + title + byline + article + math + print;
+export const styles = base + layout + title + byline + article + math + modern + chrome + print;
 
 export function makeStyleTag(dom) {
 
