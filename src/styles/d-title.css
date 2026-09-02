@@ -15,31 +15,36 @@
  */
 
 d-title {
-  display: block;
-  box-sizing: border-box;
-  max-width: 840px;
-  margin: 0 auto;
-  padding: 38px 20px 24px;
+  padding: 2rem 0 1.5rem;
   contain: layout style;
   overflow-x: hidden;
 }
 
+@media(min-width: 768px) {
+  d-title {
+    padding: 4rem 0 1.5rem;
+  }
+}
+
 d-title h1 {
-  max-width: 500px;
+  grid-column: text;
   font-size: 40px;
-  font-weight: 600;
-  line-height: 1.2em;
-  letter-spacing: -0.03em;
-  margin: 0 auto 16px;
+  font-weight: 700;
+  line-height: 1.1em;
+  margin: 0 0 0.5rem;
+}
+
+@media(min-width: 768px) {
+  d-title h1 {
+    font-size: 50px;
+  }
 }
 
 d-title p {
-  max-width: 500px;
-  margin: 0 auto;
-  font-weight: 400;
-  font-size: 16px;
-  line-height: 1.5em;
-  color: rgba(0, 0, 0, 0.7);
+  font-weight: 300;
+  font-size: 1.2rem;
+  line-height: 1.55em;
+  grid-column: text;
 }
 
 d-title .status {
