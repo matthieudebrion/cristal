@@ -72,5 +72,5 @@ distill-header a.home-link:hover {
 <a class="logo" href="/" aria-label="Home">
   ${logo}
 </a>
-<a class="home-link" href="/">Cristal</a>
+<a class="home-link" href="/cristal/">Cristal</a>
 `;
