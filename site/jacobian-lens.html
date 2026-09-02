@@ -29,7 +29,7 @@
 
   <d-title>
     <h1>The Jacobian Lens</h1>
-    <p>Using the model's averaged Jacobian to translate intermediate residual states into vocabulary predictions, without training a separate probe.</p>
+    <p><strong>TL;DR.</strong> The Jacobian lens (J-lens) characterizes an intermediate activation by its first-order causal effect on the final residual stream. It averages that effect across prompts and positions, then decodes it with the model's unembedding.</p>
   </d-title>
 
   <d-byline></d-byline>
@@ -51,8 +51,6 @@
 
   <d-article>
     <d-toc></d-toc>
-
-    <p><strong>TL;DR.</strong> The Jacobian lens (J-lens) characterizes an intermediate activation by its first-order causal effect on the final residual stream. It averages that effect across prompts and positions, then decodes it with the model's unembedding.</p>
 
     <h2>The Lens Family</h2>
 
