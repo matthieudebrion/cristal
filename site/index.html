@@ -82,7 +82,8 @@
     }
 
     .title h1 {
-      margin: 38px 0 0;
+      max-width: 500px;
+      margin: 38px auto 0;
       font-family: var(--sans);
       font-size: 40px;
       font-weight: 600;
@@ -94,7 +95,7 @@
 
     .title p {
       max-width: 500px;
-      margin: 16px 0 0;
+      margin: 16px auto 0;
       font-family: var(--serif);
       line-height: 1.5em;
       color: rgba(0, 0, 0, 0.7);
@@ -136,7 +137,6 @@
       margin-top: 10px;
       padding-top: 14px;
       padding-bottom: 14px;
-      padding-right: 16px;
     }
 
     .note h3 {
@@ -156,7 +156,6 @@
       margin-bottom: 20px;
       padding-top: 22px;
       padding-bottom: 22px;
-      padding-right: 16px;
     }
 
     .paper img {
@@ -198,7 +197,7 @@
     .note:hover h3,
     .paper:hover h3 { text-decoration: underline; text-decoration-color: var(--duke-blue); }
 
-    .rss { margin-top: 28px; font-size: 14px; }
+    .rss { max-width: 500px; margin: 28px auto 0; font-size: 14px; }
     .rss a { color: var(--color-dark); }
 
     @media (min-width: 480px) {
@@ -209,14 +208,9 @@
 
     /* Date and title share a grid row so their tops line up. */
     @media (min-width: 768px) {
-      .title { padding-left: 160px; }
-
-      .rss { margin-left: 140px; }
-
       .toc {
         display: grid;
-        grid-template-columns: 120px minmax(0, 1fr);
-        column-gap: 20px;
+        grid-template-columns: minmax(0, 1fr) 500px minmax(0, 1fr);
         align-items: start;
       }
 
